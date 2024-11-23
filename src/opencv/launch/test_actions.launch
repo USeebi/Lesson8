@@ -1,0 +1,38 @@
+<!-- Launch file for KeyPoint steering
+	$ launch opencv test_actions.launch
+-->
+
+<launch>
+
+    <arg name="server_node" value="move_base" />
+
+    <!-- remap from="/cmd_vel" to="/yocs_cmd_vel_mux/output/cmd_vel" / -->
+    <!-- include file="$(find tarkbot_robot)/launch/robot.launch"/ -->
+    <!-- include file="$(find ydlidar_ros_driver)/launch/X3.launch"/ -->
+    <include file="$(find robot_vision)/launch/usb_cam.launch"/>
+    <include file="$(find yocs_cmd_vel_mux)/launch/standalone.launch" />
+
+<!--
+To add goals to the sequence server, change the topic of 2D nav goal tool on rviz to /move_base_sequence/corner_pose as stipulated in https://github.com/MarkNaeem/move_base_sequence
+-->
+    <node name="move_base_sequence" pkg="move_base_sequence" type="server.py">
+       <param name="/move_base_sequence/is_repeating" value="False"/>
+       <param name="/move_base_sequence/abortion_behaviour" value="continue"/>
+    </node>
+
+    <node pkg="donkey_car" name="chase_ball" type="chase_the_ball.py" output="screen" >
+        <remap from="/control/cmd_vel" to="/yocs_cmd_vel_mux/input/opencv" />
+    </node>
+    <node pkg="opencv" name="blob_finder" type="find_ball.py" output="screen" >
+
+    </node>
+    <node pkg="opencv" name="blob_finder_3d" type="detect_ball_3d.py" output="screen" >
+      <rosparam command="load" file="$(find opencv)/config/ball_tracker_params_example.yaml" />
+      <remap from="/blob/detected_ball_3d" to="/move_base_sequence/corner_pose" />
+    </node>
+
+  <node name="reconfigure_gui" pkg="rqt_reconfigure" type="rqt_reconfigure" />
+  <node name="axserver_node" pkg="actionlib_tools"
+        type="axserver.py" args="/$(arg server_node) move_base_msgs/MoveBaseAction" output="screen" />
+
+</launch>
